@@ -1,0 +1,17 @@
+{
+  "name": "data-science",
+  "dockerComposeFile": ".docker/docker-compose.yml",
+  "service": "data_science",
+  "workspaceFolder": "/app",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "davidanson.vscode-markdownlint",
+        "eamodio.gitlens",
+        "irongeek.vscode-env",
+        "ms-azuretools.vscode-docker",
+        "yzhang.markdown-all-in-one"
+      ]
+    }
+  }
+}

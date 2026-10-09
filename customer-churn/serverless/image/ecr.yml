@@ -1,0 +1,30 @@
+Resources:
+  ModelImageRepository:
+    Type: AWS::ECR::Repository
+    # A registered/deployed model can't run without its image.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      RepositoryName: ${self:custom.ecr.repositoryName}
+      # A tag (content hash) can never point to a different image.
+      ImageTagMutability: IMMUTABLE
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      EncryptionConfiguration:
+        EncryptionType: AES256
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep the most recent model images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": ${self:custom.ecr.maxImages.${self:custom.stage}}
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }

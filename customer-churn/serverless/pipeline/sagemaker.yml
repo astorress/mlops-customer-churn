@@ -1,0 +1,23 @@
+Resources:
+  # Model Registry: one group per project, one package per trained version.
+  ModelPackageGroup:
+    Type: AWS::SageMaker::ModelPackageGroup
+    Properties:
+      ModelPackageGroupName: ${self:custom.registry.modelPackageGroupName}
+      ModelPackageGroupDescription: Customer churn classifier (IBM Telco dataset)
+
+  TrainingPipeline:
+    Type: AWS::SageMaker::Pipeline
+    DependsOn:
+      - ModelPackageGroup
+      - PipelineAthenaWorkGroup
+    Properties:
+      PipelineName: ${self:custom.pipeline.name}
+      PipelineDisplayName: ${self:custom.pipeline.name}
+      PipelineDescription: Athena → validate/split → baseline → train → evaluate → register
+      RoleArn: !GetAtt SageMakerExecutionRole.Arn
+      PipelineDefinition:
+        PipelineDefinitionBody: ${file(./pipeline-definition.js)}
+      Tags:
+        - Key: ImageTag
+          Value: ${self:custom.image.tag}

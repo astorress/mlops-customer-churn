@@ -1,0 +1,21 @@
+{
+  "folders": [
+    {
+      "path": "/app/customer-churn",
+      "name": "[✪] Project",
+    },
+    {
+      "path": "/app/.docker",
+      "name": "[⛭] Parent's .docker",
+    },
+    {
+      "path": "/app/.envs",
+      "name": "[⛭] Parent's .envs",
+    },
+    {
+      "path": "/app/docs",
+      "name": "[⛭] Parent's docs",
+    },
+  ],
+  "settings": {},
+}

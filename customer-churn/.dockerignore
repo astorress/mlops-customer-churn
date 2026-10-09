@@ -1,0 +1,10 @@
+# Model image build context (container/Dockerfile): only what it COPYs.
+*
+!container/requirements.txt
+!container/entrypoint.sh
+!src/__init__.py
+!src/features/**/*.py
+!src/models/**/*.py
+!src/monitoring/**/*.py
+!src/pipelines/**/*.py
+!src/serving/**/*.py

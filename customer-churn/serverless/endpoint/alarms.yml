@@ -1,0 +1,64 @@
+Resources:
+  # Also the blue/green auto-rollback trigger (see ChurnEndpoint).
+  Invocation5XXErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: ${self:custom.servicePrefix}-Invocation5XXErrors
+      AlarmDescription: The churn model is failing requests
+      Namespace: AWS/SageMaker
+      MetricName: Invocation5XXErrors
+      Dimensions:
+        - Name: EndpointName
+          Value: ${self:custom.endpoint.name}
+        - Name: VariantName
+          Value: AllTraffic
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - ${self:custom.sns.notificationsTopicArn}
+
+  ModelLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: ${self:custom.servicePrefix}-ModelLatency
+      AlarmDescription: p90 model latency above 500 ms
+      Namespace: AWS/SageMaker
+      MetricName: ModelLatency
+      Dimensions:
+        - Name: EndpointName
+          Value: ${self:custom.endpoint.name}
+        - Name: VariantName
+          Value: AllTraffic
+      ExtendedStatistic: p90
+      Period: 300
+      EvaluationPeriods: 3
+      # ModelLatency is reported in microseconds.
+      Threshold: 500000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - ${self:custom.sns.notificationsTopicArn}
+
+  # Data drift: published by the DataDrift Lambda (max PSI across features).
+  FeatureDriftAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: ${self:custom.servicePrefix}-DataDrift
+      AlarmDescription: Live traffic drifted from the training baseline (max PSI above threshold) — consider retraining
+      Namespace: ${self:custom.monitoring.metricNamespace}
+      MetricName: MaxFeatureDrift
+      Dimensions:
+        - Name: Endpoint
+          Value: ${self:custom.endpoint.name}
+      Statistic: Maximum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: ${self:custom.monitoring.driftThreshold}
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - ${self:custom.sns.notificationsTopicArn}

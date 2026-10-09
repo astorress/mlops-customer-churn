@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "/app",
+			"name": "[✪] Data Science",
+		},
+		{
+			"path": "/app/customer-churn/.envs",
+			"name": "[⛭] Customer Churn Envs",
+		},
+		{
+			"path": "/app/infrastructure/.envs",
+			"name": "[⛭] Infrastructure Envs",
+		}
+	],
+	"settings": {}
+}

@@ -1,0 +1,39 @@
+{
+  "name": "data-science-infrastructure",
+  "dockerComposeFile": [".docker/docker-compose.yml"],
+  "service": "data_science_infrastructure",
+  "workspaceFolder": "/app/infrastructure",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "aaron-bond.better-comments",
+        "davidanson.vscode-markdownlint",
+        "dbaeumer.vscode-eslint",
+        "eamodio.gitlens",
+        "esbenp.prettier-vscode",
+        "irongeek.vscode-env",
+        "ms-azuretools.vscode-docker",
+        "threadheap.serverless-ide-vscode",
+        "yzhang.markdown-all-in-one"
+      ],
+      "settings": {
+        "editor.codeActionsOnSave": {
+          "source.fixAll.markdownlint": "explicit"
+        },
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true,
+        "editor.insertSpaces": true,
+        "git.autoRepositoryDetection": true,
+        "git.openRepositoryInParentFolders": "always",
+        "serverlessIDE.cfnLint.path": "/usr/local/bin/cfn-lint",
+        "serverlessIDE.cfnLint.appendRules": ["cfn_lint_serverless.rules"],
+        "serverlessIDE.completion": true,
+        "serverlessIDE.hover": true,
+        "serverlessIDE.telemetry.enableTelemetry": false,
+        "serverlessIDE.validate": true,
+        "serverlessIDE.validationProvider": "cfn-lint"
+      }
+    }
+  },
+  "postCreateCommand": "chmod +x .docker/entrypoint.sh && .docker/entrypoint.sh"
+}

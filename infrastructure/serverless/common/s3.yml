@@ -1,0 +1,74 @@
+Resources:
+  # Data lake zones (by prefix): raw/ (as ingested), curated/ (cleaned,
+  # typed, Parquet) and predictions/ (batch inference outputs). Every project
+  # writes under its own <zone>/<project>/ prefix.
+  DataLakeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: ${self:custom.s3.dataLakeBucketName}
+      VersioningConfiguration:
+        Status: Enabled
+      # S3 → EventBridge: lets projects react to new raw files (event-driven
+      # ingestion) without bucket notification configuration collisions.
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ${self:custom.servicePrefix}-DataLakeNoncurrentVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: ${self:custom.s3.noncurrentVersionExpirationInDays.${self:custom.stage}}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # ML artifacts: code bundles, pipeline intermediate datasets, model
+  # artifacts, evaluation reports, baselines, endpoint data capture and model
+  # monitoring reports. Versioned so every artifact is reproducible.
+  ArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: ${self:custom.s3.artifactsBucketName}
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: ${self:custom.servicePrefix}-ArtifactsNoncurrentVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: ${self:custom.s3.noncurrentVersionExpirationInDays.${self:custom.stage}}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  AthenaResultsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: ${self:custom.s3.athenaResultsBucketName}
+      LifecycleConfiguration:
+        Rules:
+          - Id: ${self:custom.servicePrefix}-AthenaResults
+            Status: Enabled
+            ExpirationInDays: ${self:custom.s3.athenaResultsExpirationInDays.${self:custom.stage}}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true

@@ -1,0 +1,19 @@
+Resources:
+  AthenaWorkGroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: ${self:custom.athena.workGroupName}
+      Description: Shared Athena workgroup for the data-science MLOps projects
+      RecursiveDeleteOption: true
+      State: ENABLED
+      WorkGroupConfiguration:
+        # Clients can't override the results location / limits below.
+        EnforceWorkGroupConfiguration: true
+        PublishCloudWatchMetricsEnabled: true
+        BytesScannedCutoffPerQuery: ${self:custom.athena.bytesScannedCutoffPerQuery}
+        EngineVersion:
+          SelectedEngineVersion: Athena engine version 3
+        ResultConfiguration:
+          OutputLocation: s3://${self:custom.s3.athenaResultsBucketName}/results/
+          EncryptionConfiguration:
+            EncryptionOption: SSE_S3

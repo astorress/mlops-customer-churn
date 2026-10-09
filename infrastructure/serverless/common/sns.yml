@@ -1,0 +1,31 @@
+Resources:
+  # Single human-facing channel for every MLOps event: pipeline failures,
+  # models pending approval, approved models and monitoring alarms.
+  NotificationsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ${self:custom.servicePrefix}-Notifications
+      DisplayName: Data Science MLOps
+      Subscription: ${self:custom.sns.notificationSubscriptions}
+
+  NotificationsTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref NotificationsTopic
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          # EventBridge rules (pipeline/model registry events) and CloudWatch
+          # alarms (endpoint health, data drift) publish directly.
+          - Sid: AllowEventBridgeAndCloudWatch
+            Effect: Allow
+            Principal:
+              Service:
+                - events.amazonaws.com
+                - cloudwatch.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref NotificationsTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId

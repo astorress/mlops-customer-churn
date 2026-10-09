@@ -1,0 +1,73 @@
+service: common-infrastructure
+frameworkVersion: ^4.43.0
+configValidationMode: error
+
+provider:
+  name: aws
+  stage: dev
+  region: us-east-1
+  stackName: ${self:custom.app}-${self:service}
+  deploymentBucket:
+    name: ${self:custom.s3.deploymentBucketName.${self:custom.stage}}
+
+resources:
+  - ${file(s3.yml)}
+  - ${file(athena.yml)}
+  - ${file(sns.yml)}
+  - ${file(ssm.yml)}
+  - ${file(cfn-collisions.yml)}
+
+plugins:
+  - serverless-deployment-bucket
+  - '@serverless/safeguards-plugin'
+
+custom:
+  org: ${env:ORG}
+  app: data-science
+  stage: ${opt:stage, self:provider.stage}
+  safeguards:
+    - safeguard: framework-version
+      enforcementLevel: warning
+      config: ${self:frameworkVersion}
+    - safeguard: allowed-regions
+      enforcementLevel: error
+      config:
+        - ${self:provider.region}
+    - safeguard: no-wild-iam-role-statements
+      enforcementLevel: warning
+    - safeguard: allowed-stages
+      enforcementLevel: error
+      config:
+        - dev
+        - test
+        - prod
+  servicePrefix: ${self:custom.app}-${self:service}
+  developer: ${env:DEVELOPER}
+  # Bucket names used by ML services avoid dots (virtual-hosted TLS + some
+  # SageMaker features don't get along with dotted bucket names).
+  bucketPrefix:
+    dev: ${self:custom.org}-${self:custom.app}-${self:custom.stage}-${self:custom.developer}
+    test: ${self:custom.org}-${self:custom.app}-${self:custom.stage}
+    prod: ${self:custom.org}-${self:custom.app}-${self:custom.stage}
+  s3:
+    deploymentBucketName:
+      dev: ${self:provider.region}.${self:custom.org}.${self:custom.app}.${self:custom.stage}.${self:custom.developer}.deploys
+      test: ${self:provider.region}.${self:custom.org}.${self:custom.app}.${self:custom.stage}.deploys
+      prod: ${self:provider.region}.${self:custom.org}.${self:custom.app}.${self:custom.stage}.deploys
+    dataLakeBucketName: ${self:custom.bucketPrefix.${self:custom.stage}}-datalake
+    artifactsBucketName: ${self:custom.bucketPrefix.${self:custom.stage}}-artifacts
+    athenaResultsBucketName: ${self:custom.bucketPrefix.${self:custom.stage}}-athena
+    noncurrentVersionExpirationInDays:
+      dev: 7
+      test: 30
+      prod: 90
+    athenaResultsExpirationInDays:
+      dev: 1
+      test: 7
+      prod: 30
+  athena:
+    workGroupName: ${self:custom.app}
+    # Guard rail against accidental full scans (10 GB per query).
+    bytesScannedCutoffPerQuery: 10737418240
+  sns:
+    notificationSubscriptions: ${file(../shared/email-subscriptions.js)}

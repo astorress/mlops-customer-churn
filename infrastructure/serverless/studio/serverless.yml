@@ -1,0 +1,65 @@
+# SageMaker Studio: the UI where the team *sees* the MLOps flows (pipeline
+# DAGs and executions, experiments, Model Registry approvals, endpoints and
+# monitoring). Deployed in every stage; no other stack reads its outputs.
+service: sagemaker-studio
+frameworkVersion: ^4.43.0
+configValidationMode: error
+
+provider:
+  name: aws
+  stage: dev
+  region: us-east-1
+  stackName: ${self:custom.app}-${self:service}
+  deploymentBucket:
+    name: ${self:custom.s3.deploymentBucketName.${self:custom.stage}}
+
+resources:
+  - ${file(iam.yml)}
+  - ${file(studio.yml)}
+  - ${file(cfn-collisions.yml)}
+
+plugins:
+  - serverless-deployment-bucket
+  - '@serverless/safeguards-plugin'
+
+custom:
+  org: ${env:ORG}
+  app: data-science
+  stage: ${opt:stage, self:provider.stage}
+  safeguards:
+    - safeguard: framework-version
+      enforcementLevel: warning
+      config: ${self:frameworkVersion}
+    - safeguard: allowed-regions
+      enforcementLevel: error
+      config:
+        - ${self:provider.region}
+    - safeguard: no-wild-iam-role-statements
+      enforcementLevel: warning
+    - safeguard: allowed-stages
+      enforcementLevel: error
+      config:
+        - dev
+        - test
+        - prod
+  servicePrefix: ${self:custom.app}-${self:service}
+  developer: ${env:DEVELOPER}
+  studio:
+    domainName: ${self:custom.app}
+    # From the Library > Cloud Formation > Virtual Private Cloud stack (customlib,
+    # deployed as ${env:DEPLOY_APP}-cloud-formation-vpc). AppSubnets is an SSM
+    # StringList: Serverless resolves it as a list.
+    vpcId: ${ssm:/SLS/${env:DEPLOY_APP}-cloud-formation-vpc/VPC}
+    subnetIds: ${ssm:/SLS/${env:DEPLOY_APP}-cloud-formation-vpc/AppSubnets}
+    # Idle JupyterLab/Code Editor apps shut down by themselves (cost control).
+    idleTimeoutInMinutes: 60
+  s3:
+    deploymentBucketName:
+      dev: ${self:provider.region}.${self:custom.org}.${self:custom.app}.${self:custom.stage}.${self:custom.developer}.deploys
+      test: ${self:provider.region}.${self:custom.org}.${self:custom.app}.${self:custom.stage}.deploys
+      prod: ${self:provider.region}.${self:custom.org}.${self:custom.app}.${self:custom.stage}.deploys
+    dataLakeBucketArn: ${ssm:/${self:custom.app}-common-infrastructure/DataLakeBucketArn}
+    artifactsBucketArn: ${ssm:/${self:custom.app}-common-infrastructure/ArtifactsBucketArn}
+    athenaResultsBucketArn: ${ssm:/${self:custom.app}-common-infrastructure/AthenaResultsBucketArn}
+  athena:
+    workGroupName: ${ssm:/${self:custom.app}-common-infrastructure/AthenaWorkGroupName}

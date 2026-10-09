@@ -1,0 +1,28 @@
+{
+  "name": "data-science-infrastructure",
+  "author": "Sebastian Torres",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@serverless/safeguards-plugin": "^1.2.1",
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.6",
+    "serverless-deployment-bucket": "^1.6.0"
+  },
+  "scripts": {
+    "format": "prettier --write \"serverless/**/*.{yml,js}\"",
+    "format:check": "prettier --check \"serverless/**/*.{yml,js}\"",
+    "lint": "eslint serverless",
+    "deploy-common:dev": "cd serverless/common; sls deploy",
+    "deploy-common:test": "cd serverless/common; sls deploy --stage test",
+    "deploy-common:prod": "cd serverless/common; sls deploy --stage prod",
+    "deploy-vpc:dev": "cd customlib/cloud-formation/virtual-private-cloud/serverless; sls deploy",
+    "deploy-vpc:test": "cd customlib/cloud-formation/virtual-private-cloud/serverless; sls deploy --stage test",
+    "deploy-vpc:prod": "cd customlib/cloud-formation/virtual-private-cloud/serverless; sls deploy --stage prod",
+    "deploy-studio:dev": "cd serverless/studio; sls deploy",
+    "deploy-studio:test": "cd serverless/studio; sls deploy --stage test",
+    "deploy-studio:prod": "cd serverless/studio; sls deploy --stage prod"
+  },
+  "license": "ISC"
+}

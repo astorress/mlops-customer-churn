@@ -1,0 +1,92 @@
+Resources:
+  # Continuous training trigger 1: curated data refreshed successfully.
+  CurationSucceededRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ${self:custom.servicePrefix}-CurationSucceeded
+      Description: New curated data → retrain
+      State: ENABLED
+      EventPattern:
+        source:
+          - aws.glue
+        detail-type:
+          - Glue Job State Change
+        detail:
+          jobName:
+            - ${self:custom.glue.curateJobName}
+          state:
+            - SUCCEEDED
+      Targets:
+        - Id: TrainingPipeline
+          Arn: !Sub arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:pipeline/${self:custom.pipeline.name}
+          RoleArn: !GetAtt PipelineEventsRole.Arn
+          SageMakerPipelineParameters:
+            PipelineParameterList:
+              - Name: TriggeredBy
+                Value: new-data
+
+  # Continuous training trigger 2: schedule (enabled in prod only).
+  ScheduledRetrainingRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ${self:custom.servicePrefix}-ScheduledRetraining
+      Description: Periodic retraining on the latest curated data
+      ScheduleExpression: ${self:custom.pipeline.retrainingSchedule}
+      State: ${self:custom.pipeline.retrainingScheduleState.${self:custom.stage}}
+      Targets:
+        - Id: TrainingPipeline
+          Arn: !Sub arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:pipeline/${self:custom.pipeline.name}
+          RoleArn: !GetAtt PipelineEventsRole.Arn
+          SageMakerPipelineParameters:
+            PipelineParameterList:
+              - Name: TriggeredBy
+                Value: schedule
+
+  PipelineFailedRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ${self:custom.servicePrefix}-PipelineFailed
+      Description: Training pipeline failed (data validation, low AUC, errors)
+      State: ENABLED
+      EventPattern:
+        source:
+          - aws.sagemaker
+        detail-type:
+          - SageMaker Model Building Pipeline Execution Status Change
+        detail:
+          pipelineArn:
+            - !Sub arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:pipeline/${self:custom.pipeline.name}
+          currentPipelineExecutionStatus:
+            - Failed
+      Targets:
+        - Id: Notifications
+          Arn: ${self:custom.sns.notificationsTopicArn}
+          InputTransformer:
+            InputPathsMap:
+              execution: $.detail.pipelineExecutionArn
+            InputTemplate: '"[${self:custom.stage}] customer-churn training pipeline FAILED: <execution>. Check the failed step in SageMaker Studio → Pipelines."'
+
+  ModelPendingApprovalRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ${self:custom.servicePrefix}-ModelPendingApproval
+      Description: New model version registered, waiting for a human
+      State: ENABLED
+      EventPattern:
+        source:
+          - aws.sagemaker
+        detail-type:
+          - SageMaker Model Package State Change
+        detail:
+          ModelPackageGroupName:
+            - ${self:custom.registry.modelPackageGroupName}
+          ModelApprovalStatus:
+            - PendingManualApproval
+      Targets:
+        - Id: Notifications
+          Arn: ${self:custom.sns.notificationsTopicArn}
+          InputTransformer:
+            InputPathsMap:
+              version: $.detail.ModelPackageVersion
+              arn: $.detail.ModelPackageArn
+            InputTemplate: '"[${self:custom.stage}] customer-churn model v<version> is pending approval (<arn>). Review its metrics and run: npm run models -- --approve <version>"'

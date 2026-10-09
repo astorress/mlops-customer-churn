@@ -1,0 +1,185 @@
+Resources:
+  GlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: ${self:custom.glue.databaseName}
+        Description: Customer churn MLOps project (raw, curated, predictions)
+
+  # Raw zone: schema *discovered* by a crawler (exploration in Athena).
+  # Creates the `raw_customer_churn` table partitioned by ingestion_date.
+  RawCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Name: ${self:custom.glue.crawlerName}
+      Role: !GetAtt GlueRole.Arn
+      DatabaseName: !Ref GlueDatabase
+      TablePrefix: ${self:custom.glue.rawTablePrefix}
+      Targets:
+        S3Targets:
+          - Path: s3://${self:custom.s3.dataLakeBucketName}/${self:custom.prefixes.raw}/
+      SchemaChangePolicy:
+        UpdateBehavior: UPDATE_IN_DATABASE
+        DeleteBehavior: LOG
+      Configuration: '{"Version":1.0,"Grouping":{"TableGroupingPolicy":"CombineCompatibleSchemas"},"CrawlerOutput":{"Partitions":{"AddOrUpdateBehavior":"InheritFromTable"}}}'
+
+  # Curated zone: schema *declared* as code — this is the data contract the
+  # training pipeline and batch scoring read. Partition projection: Athena
+  # computes partitions (Hive-style paths under Location), no MSCK REPAIR or
+  # crawler needed.
+  CuratedTable:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref GlueDatabase
+      TableInput:
+        Name: ${self:custom.glue.curatedTableName}
+        Description: Cleaned, typed customers (one row per customer and ingestion)
+        TableType: EXTERNAL_TABLE
+        Parameters:
+          classification: parquet
+          projection.enabled: 'true'
+          projection.ingestion_date.type: date
+          projection.ingestion_date.format: yyyy-MM-dd
+          projection.ingestion_date.range: 2024-01-01,NOW
+          projection.ingestion_date.interval: '1'
+          projection.ingestion_date.interval.unit: DAYS
+        PartitionKeys:
+          - Name: ingestion_date
+            Type: string
+        StorageDescriptor:
+          Location: s3://${self:custom.s3.dataLakeBucketName}/${self:custom.prefixes.curated}/
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+          Columns:
+            - { Name: customer_id, Type: string }
+            - { Name: gender, Type: string }
+            - { Name: senior_citizen, Type: int }
+            - { Name: partner, Type: string }
+            - { Name: dependents, Type: string }
+            - { Name: tenure, Type: int }
+            - { Name: phone_service, Type: string }
+            - { Name: multiple_lines, Type: string }
+            - { Name: internet_service, Type: string }
+            - { Name: online_security, Type: string }
+            - { Name: online_backup, Type: string }
+            - { Name: device_protection, Type: string }
+            - { Name: tech_support, Type: string }
+            - { Name: streaming_tv, Type: string }
+            - { Name: streaming_movies, Type: string }
+            - { Name: contract, Type: string }
+            - { Name: paperless_billing, Type: string }
+            - { Name: payment_method, Type: string }
+            - { Name: monthly_charges, Type: double }
+            - { Name: total_charges, Type: double }
+            - { Name: churn, Type: int }
+
+  # Batch Transform output (serverless/batch): customer_id,churn_probability.
+  PredictionsTable:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref GlueDatabase
+      TableInput:
+        Name: ${self:custom.glue.predictionsTableName}
+        Description: Churn probability of active customers, per batch run date
+        TableType: EXTERNAL_TABLE
+        Parameters:
+          classification: csv
+          projection.enabled: 'true'
+          projection.run_date.type: date
+          projection.run_date.format: yyyy-MM-dd
+          projection.run_date.range: 2024-01-01,NOW
+          projection.run_date.interval: '1'
+          projection.run_date.interval.unit: DAYS
+        PartitionKeys:
+          - Name: run_date
+            Type: string
+        StorageDescriptor:
+          Location: s3://${self:custom.s3.dataLakeBucketName}/${self:custom.prefixes.predictions}/
+          InputFormat: org.apache.hadoop.mapred.TextInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+            Parameters:
+              field.delim: ','
+          Columns:
+            - { Name: customer_id, Type: string }
+            - { Name: churn_probability, Type: double }
+
+  CurateJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: ${self:custom.glue.jobName}
+      Description: raw CSV → curated Parquet + Glue Data Quality gate
+      Role: !GetAtt GlueRole.Arn
+      GlueVersion: '${self:custom.glue.version}'
+      WorkerType: ${self:custom.glue.workerType}
+      NumberOfWorkers: ${self:custom.glue.numberOfWorkers}
+      Timeout: 30
+      MaxRetries: 0
+      ExecutionProperty:
+        MaxConcurrentRuns: 1
+      Command:
+        Name: glueetl
+        PythonVersion: '3'
+        ScriptLocation: s3://${self:custom.s3.artifactsBucketName}/${self:custom.prefixes.code}/curate_customers.py
+      DefaultArguments:
+        '--job-language': python
+        '--enable-metrics': 'true'
+        '--enable-continuous-cloudwatch-log': 'true'
+        '--enable-glue-datacatalog': 'true'
+        '--TempDir': s3://${self:custom.s3.artifactsBucketName}/${self:custom.prefixes.glueTemp}/
+        '--RAW_PATH': s3://${self:custom.s3.dataLakeBucketName}/${self:custom.prefixes.raw}/
+        '--CURATED_PATH': s3://${self:custom.s3.dataLakeBucketName}/${self:custom.prefixes.curated}/
+        '--INGESTION_DATE': latest
+        '--DQ_RULESET': ${self:custom.glue.dataQualityRuleset}
+
+  CuratedDataQualityRuleset:
+    Type: AWS::Glue::DataQualityRuleset
+    Properties:
+      Name: ${self:custom.servicePrefix}-Curated
+      Description: Same rules the curation job enforces
+      Ruleset: ${self:custom.glue.dataQualityRuleset}
+      TargetTable:
+        DatabaseName: !Ref GlueDatabase
+        TableName: !Ref CuratedTable
+
+  # Orchestration of the data flow: EVENT (new raw file) → crawler →
+  # (crawler SUCCEEDED) → curation job.
+  IngestionWorkflow:
+    Type: AWS::Glue::Workflow
+    Properties:
+      Name: ${self:custom.glue.workflowName}
+      Description: New raw data → crawl → curate (+ data quality)
+      MaxConcurrentRuns: 1
+
+  IngestionStartTrigger:
+    Type: AWS::Glue::Trigger
+    Properties:
+      Name: ${self:custom.servicePrefix}-OnRawData
+      WorkflowName: !Ref IngestionWorkflow
+      Type: EVENT
+      EventBatchingCondition:
+        BatchSize: 100
+        BatchWindow: ${self:custom.glue.eventBatchWindow}
+      Actions:
+        - CrawlerName: !Ref RawCrawler
+
+  CurateTrigger:
+    Type: AWS::Glue::Trigger
+    Properties:
+      Name: ${self:custom.servicePrefix}-OnRawCrawled
+      WorkflowName: !Ref IngestionWorkflow
+      Type: CONDITIONAL
+      StartOnCreation: true
+      Predicate:
+        Conditions:
+          - LogicalOperator: EQUALS
+            CrawlerName: !Ref RawCrawler
+            CrawlState: SUCCEEDED
+      Actions:
+        - JobName: !Ref CurateJob

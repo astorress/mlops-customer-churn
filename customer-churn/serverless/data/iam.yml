@@ -1,0 +1,101 @@
+Resources:
+  IngestDatasetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ${self:custom.servicePrefix}-IngestDataset
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ${self:custom.servicePrefix}-IngestDataset
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: s3:PutObject
+                Resource: ${self:custom.s3.dataLakeBucketArn}/${self:custom.prefixes.raw}/*
+
+  # Shared by the crawler and the curation job.
+  GlueRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ${self:custom.servicePrefix}-Glue
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+      Policies:
+        - PolicyName: ${self:custom.servicePrefix}-Glue
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource:
+                  - ${self:custom.s3.dataLakeBucketArn}
+                  - ${self:custom.s3.artifactsBucketArn}
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource:
+                  - ${self:custom.s3.dataLakeBucketArn}/${self:custom.prefixes.raw}/*
+                  - ${self:custom.s3.artifactsBucketArn}/${self:custom.prefixes.code}/*
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - ${self:custom.s3.dataLakeBucketArn}/${self:custom.prefixes.curated}/*
+                  - ${self:custom.s3.artifactsBucketArn}/${self:custom.prefixes.glueTemp}/*
+              # Spark on Glue (EMRFS) creates empty "<folder>_$folder$" marker
+              # objects for every ancestor of the output path when it commits.
+              # They live outside the prefixes above, so they're listed here.
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - ${self:custom.s3.dataLakeBucketArn}/curated_$folder$
+                  - ${self:custom.s3.dataLakeBucketArn}/curated/customer_churn_$folder$
+                  - ${self:custom.s3.dataLakeBucketArn}/${self:custom.prefixes.curated}_$folder$
+                  - ${self:custom.s3.artifactsBucketArn}/tmp_$folder$
+                  - ${self:custom.s3.artifactsBucketArn}/tmp/customer-churn_$folder$
+                  - ${self:custom.s3.artifactsBucketArn}/${self:custom.prefixes.glueTemp}_$folder$
+              - Effect: Allow
+                Action:
+                  - glue:PublishDataQuality
+                  - glue:GetDataQualityResult
+                Resource: '*'
+
+  # EventBridge → Glue workflow (EVENT trigger).
+  IngestionEventsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ${self:custom.servicePrefix}-IngestionEvents
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ${self:custom.servicePrefix}-IngestionEvents
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: glue:NotifyEvent
+                Resource: !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:workflow/${self:custom.glue.workflowName}

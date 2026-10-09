@@ -1,0 +1,12 @@
+# Dependencies
+node_modules
+customlib
+
+# Environment
+.envs/*
+!.envs/.gitignore
+!.envs/*.example
+
+*.serverless
+*.vscode
+*.DS_Store

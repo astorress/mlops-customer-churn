@@ -1,0 +1,19 @@
+IngestDataset:
+  name: ${self:custom.servicePrefix}-IngestDataset
+  description: Downloads the public dataset into the raw zone (manual invoke)
+  handler: src/functions/ingestion/ingest_dataset.handler
+  package:
+    patterns:
+      - ../../src/__init__.py
+      - ../../src/functions/__init__.py
+      - ../../src/functions/ingestion/*.py
+      - ../../src/services/__init__.py
+      - ../../src/services/s3.py
+      - ../../src/utilities/*.py
+  role: !GetAtt IngestDatasetRole.Arn
+  timeout: 120
+  memorySize: 512
+  environment:
+    DATASET_URL: ${self:custom.dataset.url}
+    DATA_LAKE_BUCKET_NAME: ${self:custom.s3.dataLakeBucketName}
+    RAW_PREFIX: ${self:custom.prefixes.raw}

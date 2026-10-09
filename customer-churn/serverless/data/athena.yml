@@ -1,0 +1,72 @@
+# Saved queries (Athena console → Saved queries) to explore every zone.
+Resources:
+  ChurnByContractQuery:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Name: ${self:custom.project} - churn rate by contract
+      Description: EDA over the latest curated partition
+      Database: !Ref GlueDatabase
+      WorkGroup: ${self:custom.athena.workGroupName}
+      QueryString: |
+        SELECT contract,
+               count(*) AS customers,
+               round(avg(churn), 3) AS churn_rate,
+               round(avg(monthly_charges), 2) AS avg_monthly_charges
+        FROM ${self:custom.glue.curatedTableName}
+        WHERE ingestion_date = (SELECT max(ingestion_date) FROM ${self:custom.glue.curatedTableName})
+        GROUP BY contract
+        ORDER BY churn_rate DESC;
+
+  DataFreshnessQuery:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Name: ${self:custom.project} - data freshness and volume
+      Description: Rows and churn rate per ingestion (spot data drift between loads)
+      Database: !Ref GlueDatabase
+      WorkGroup: ${self:custom.athena.workGroupName}
+      QueryString: |
+        SELECT ingestion_date,
+               count(*) AS customers,
+               round(avg(churn), 3) AS churn_rate,
+               round(avg(monthly_charges), 2) AS avg_monthly_charges,
+               round(avg(tenure), 1) AS avg_tenure
+        FROM ${self:custom.glue.curatedTableName}
+        GROUP BY ingestion_date
+        ORDER BY ingestion_date DESC;
+
+  RawVsCuratedQuery:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Name: ${self:custom.project} - raw vs curated row counts
+      Description: The crawler-discovered raw table vs the declared curated table
+      Database: !Ref GlueDatabase
+      WorkGroup: ${self:custom.athena.workGroupName}
+      QueryString: |
+        SELECT 'raw' AS zone, ingestion_date, count(*) AS rows
+        FROM ${self:custom.glue.rawTablePrefix}customer_churn
+        GROUP BY ingestion_date
+        UNION ALL
+        SELECT 'curated', ingestion_date, count(*)
+        FROM ${self:custom.glue.curatedTableName}
+        GROUP BY ingestion_date
+        ORDER BY ingestion_date DESC, zone;
+
+  TopChurnRiskQuery:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Name: ${self:custom.project} - top churn risk customers
+      Description: Latest batch predictions joined with customer attributes
+      Database: !Ref GlueDatabase
+      WorkGroup: ${self:custom.athena.workGroupName}
+      QueryString: |
+        WITH latest AS (
+          SELECT * FROM ${self:custom.glue.predictionsTableName}
+          WHERE run_date = (SELECT max(run_date) FROM ${self:custom.glue.predictionsTableName})
+        )
+        SELECT p.customer_id, p.churn_probability, c.contract, c.tenure, c.monthly_charges
+        FROM latest p
+        JOIN ${self:custom.glue.curatedTableName} c
+          ON c.customer_id = p.customer_id
+         AND c.ingestion_date = (SELECT max(ingestion_date) FROM ${self:custom.glue.curatedTableName})
+        ORDER BY p.churn_probability DESC
+        LIMIT 50;

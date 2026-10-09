@@ -1,0 +1,132 @@
+# CI/CD template for the data-science monorepo. Each project only runs when
+# its own files (or the shared Docker/envs setup) change. Deploys are manual
+# jobs: AWS credentials and SERVERLESS_ACCESS_KEY come from protected CI/CD
+# variables, DEVELOPER/NOTIFICATION_EMAILS/MIN_ROC_AUC from project variables.
+stages:
+  - quality
+  - validate
+  - deploy
+
+variables:
+  AWS_DEFAULT_REGION: us-east-1
+  STAGE: dev
+
+.node-python: &node-python
+  image: node:24-bookworm
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq python3 python3-pip python3-venv > /dev/null
+    - python3 -m venv /opt/venv && . /opt/venv/bin/activate
+    - npm install -g serverless > /dev/null
+
+.customer-churn: &customer-churn
+  <<: *node-python
+  rules:
+    - changes:
+        - customer-churn/**/*
+        - .docker/**/*
+        - .gitlab-ci.yml
+
+.infrastructure: &infrastructure
+  <<: *node-python
+  rules:
+    - changes:
+        - infrastructure/**/*
+        - .gitlab-ci.yml
+
+infrastructure:quality:
+  <<: *infrastructure
+  stage: quality
+  script:
+    - cd infrastructure && npm ci --no-audit --no-fund
+    - npm run format:check
+    - npm run lint
+
+customer-churn:python:
+  image: python:3.13-slim-bookworm
+  stage: quality
+  rules:
+    - changes:
+        - customer-churn/**/*
+        - .gitlab-ci.yml
+  script:
+    - cd customer-churn
+    # Same pinned runtime as the model image.
+    - pip install -q -r container/requirements.txt boto3 pytest pytest-cov pytest-mock moto pylint yapf isort
+    - yapf --diff -r src tests
+    - python3 -m isort --check-only src tests
+    - pylint src tests
+    - python3 -m pytest
+  artifacts:
+    when: always
+    paths:
+      - customer-churn/htmlcov/
+
+customer-churn:node:
+  <<: *customer-churn
+  stage: quality
+  script:
+    - cd customer-churn && npm ci --no-audit --no-fund
+    - npx prettier --check .
+    - npx eslint serverless container
+
+# Builds and pushes the model image (skipped when its content-hash tag
+# already exists). Needs a runner with Docker-in-Docker.
+customer-churn:image:
+  image: docker:27
+  services:
+    - docker:27-dind
+  stage: validate
+  rules:
+    - changes:
+        - customer-churn/container/**/*
+        - customer-churn/src/**/*
+  when: manual
+  before_script:
+    - apk add --no-cache aws-cli nodejs bash
+  script:
+    - cd customer-churn && ./container/build-push.sh
+
+# `serverless package` resolves every SSM/env/file variable against the
+# target account and builds the artifacts without deploying anything.
+customer-churn:validate:
+  <<: *customer-churn
+  stage: validate
+  script:
+    - cd customer-churn && npm ci --no-audit --no-fund
+    - for stack in data image pipeline endpoint batch; do (cd serverless/$stack && sls package --stage $STAGE) || exit 1; done
+  allow_failure: true # endpoint/batch need an approved model in the account
+
+.deploy: &deploy
+  <<: *customer-churn
+  stage: deploy
+  when: manual
+  script:
+    - cd customer-churn && npm ci --no-audit --no-fund
+    - cd serverless/$STACK && sls deploy --stage $STAGE
+
+customer-churn:deploy-data:
+  <<: *deploy
+  variables:
+    STACK: data
+
+customer-churn:deploy-image:
+  <<: *deploy
+  variables:
+    STACK: image
+
+# Requires the image job first (the stack checks the tag exists in ECR).
+customer-churn:deploy-pipeline:
+  <<: *deploy
+  variables:
+    STACK: pipeline
+
+# Continuous delivery of the model: run after approving a new version.
+customer-churn:deploy-endpoint:
+  <<: *deploy
+  variables:
+    STACK: endpoint
+
+customer-churn:deploy-batch:
+  <<: *deploy
+  variables:
+    STACK: batch

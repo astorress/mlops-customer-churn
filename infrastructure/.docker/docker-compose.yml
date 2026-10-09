@@ -1,0 +1,31 @@
+services:
+  data_science_infrastructure:
+    container_name: 'DataScienceInfrastructure'
+    build:
+      context: .
+      dockerfile: ../../.docker/Dockerfile
+      target: img-infrastructure
+    volumes:
+      - ../..:/app
+      - data-science-infrastructure-bashhistory:/commandhistory
+    secrets:
+      - gitlab_ssh_private_key
+    env_file:
+      - ../../.envs/aws.env
+      - ../../.envs/sls.env
+      - ../.envs/config.env
+    environment:
+      - DEPLOY_APP=data-science
+    working_dir: /app/infrastructure
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -c
+      - sleep infinity
+
+volumes:
+  data-science-infrastructure-bashhistory:
+
+secrets:
+  gitlab_ssh_private_key:
+    file: ~/.ssh/gitlab

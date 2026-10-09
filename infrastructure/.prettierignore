@@ -1,0 +1,7 @@
+# Dependencies
+node_modules
+customlib
+package-lock.json
+
+# Environment
+.envs

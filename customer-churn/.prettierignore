@@ -1,0 +1,16 @@
+# Dependencies
+node_modules
+customlib
+package-lock.json
+
+# Environment
+.envs
+
+# Build / data
+data
+models
+htmlcov
+
+# Source (formatted separately with yapf/isort)
+src
+tests

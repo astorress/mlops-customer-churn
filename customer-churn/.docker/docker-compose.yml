@@ -1,0 +1,37 @@
+services:
+  data_science_customer_churn:
+    container_name: 'DataScienceCustomerChurn'
+    build:
+      # Project folder: the image installs container/requirements.txt.
+      context: ..
+      dockerfile: ../.docker/Dockerfile
+      target: img-customerchurn
+    ports:
+      # JupyterLab for local experimentation (jupyter lab --ip 0.0.0.0).
+      - 8888:8888
+    volumes:
+      - ../..:/app
+      - data-science-customer-churn-bashhistory:/commandhistory
+      # Host Docker daemon: build/push the model image (npm run image:push).
+      - /var/run/docker.sock:/var/run/docker.sock
+    secrets:
+      - gitlab_ssh_private_key
+    env_file:
+      - ../../.envs/aws.env
+      - ../../.envs/sls.env
+      - ../.envs/config.env
+    environment:
+      - DEPLOY_APP=data-science
+    working_dir: /app/customer-churn
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -c
+      - sleep infinity
+
+volumes:
+  data-science-customer-churn-bashhistory:
+
+secrets:
+  gitlab_ssh_private_key:
+    file: ~/.ssh/gitlab

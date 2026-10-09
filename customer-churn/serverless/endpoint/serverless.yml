@@ -1,0 +1,124 @@
+# Online inference layer: deploys the *approved* model package (resolved
+# from the SSM deployment contract written by OnModelApproved) as a
+# real-time endpoint with data capture, blue/green updates with automatic
+# rollback, hourly data drift monitoring (DataDrift Lambda) and an HTTP API.
+#
+# Redeploying this stack after a new approval = a new model version in
+# production (Model + EndpointConfig are replaced, the Endpoint is updated).
+# It costs money while it exists: `sls remove` when you're done.
+service: customer-churn-endpoint
+frameworkVersion: ^4.43.0
+configValidationMode: error
+
+provider:
+  name: aws
+  stage: dev
+  region: us-east-1
+  runtime: python3.13
+  architecture: arm64
+  stackName: ${self:custom.app}-${self:service}
+  versionFunctions: false
+  deploymentBucket:
+    name: ${self:custom.s3.deploymentBucketName.${self:custom.stage}}
+  logRetentionInDays: ${self:custom.lambda.logRetentionInDays.${self:custom.stage}}
+  httpApi:
+    name: ${self:custom.servicePrefix}
+
+package:
+  individually: true
+  patterns:
+    - '!./**'
+
+functions:
+  - ${file(functions.yml)}
+
+resources:
+  - ${file(iam.yml)}
+  - ${file(sagemaker.yml)}
+  - ${file(alarms.yml)}
+  - ${file(api.yml)}
+  - ${file(ssm.yml)}
+  - ${file(cfn-collisions.yml)}
+
+plugins:
+  - serverless-deployment-bucket
+  - '@serverless/safeguards-plugin'
+
+custom:
+  org: ${env:ORG}
+  app: data-science
+  project: customer-churn
+  stage: ${opt:stage, self:provider.stage}
+  safeguards:
+    - safeguard: framework-version
+      enforcementLevel: warning
+      config: ${self:frameworkVersion}
+    - safeguard: allowed-regions
+      enforcementLevel: error
+      config:
+        - ${self:provider.region}
+    - safeguard: no-wild-iam-role-statements
+      enforcementLevel: warning
+    - safeguard: allowed-runtimes
+      config:
+        - ${self:provider.runtime}
+    - safeguard: allowed-function-names
+      enforcementLevel: warning
+      config: ${self:custom.servicePrefix}-${FUNCTION}
+    - safeguard: allowed-stages
+      enforcementLevel: error
+      config:
+        - dev
+        - test
+        - prod
+  servicePrefix: ${self:custom.app}-${self:service}
+  developer: ${env:DEVELOPER}
+  pipelineSsmPrefix: /${self:custom.app}-customer-churn-pipeline
+  # Deployment contract (see serverless/pipeline/ssm.yml).
+  # Fails with a clear message while no model version has been approved.
+  model:
+    packageArn: ${file(./approved-model.js):packageArn}
+    baselineConstraintsUri: ${file(./approved-model.js):baselineConstraintsUri}
+    baselineStatisticsUri: ${file(./approved-model.js):baselineStatisticsUri}
+    executionRoleArn: ${ssm:${self:custom.pipelineSsmPrefix}/SageMakerExecutionRoleArn}
+  endpoint:
+    # Stable name: clients never change when a new model version ships.
+    name: ${self:custom.project}
+    # Smallest instance, same in every stage (learning project). SageMaker
+    # doesn't autoscale burstable (ml.t2.*) instances, so the endpoint always
+    # runs exactly one instance.
+    instanceType: ml.t2.medium
+    instanceCount: 1
+    dataCapturePercentage:
+      dev: 100
+      test: 100
+      prod: 20
+  # Public API guard rail: requests per second for the whole HTTP API.
+  api:
+    throttlingRateLimit: 10
+    throttlingBurstLimit: 20
+  # Data drift monitoring (replaces SageMaker Model Monitor, closed to new
+  # customers): DataDrift Lambda + CloudWatch alarm on MaxFeatureDrift.
+  monitoring:
+    # Minute 5 of every hour: analyzes the previous complete hour.
+    schedule: cron(5 * * * ? *)
+    lookbackHours: 1
+    metricNamespace: DataScience/CustomerChurn
+    # PSI above this value = significant drift (same as the baseline step).
+    driftThreshold: 0.2
+  prefixes:
+    dataCapture: data-capture/${self:custom.project}
+    monitoring: monitoring/${self:custom.project}
+  lambda:
+    logRetentionInDays:
+      dev: 1
+      test: 3
+      prod: 7
+  sns:
+    notificationsTopicArn: ${ssm:/${self:custom.app}-common-infrastructure/NotificationsTopicArn}
+  s3:
+    deploymentBucketName:
+      dev: ${self:provider.region}.${self:custom.org}.${self:custom.app}.${self:custom.stage}.${self:custom.developer}.deploys
+      test: ${self:provider.region}.${self:custom.org}.${self:custom.app}.${self:custom.stage}.deploys
+      prod: ${self:provider.region}.${self:custom.org}.${self:custom.app}.${self:custom.stage}.deploys
+    artifactsBucketName: ${ssm:/${self:custom.app}-common-infrastructure/ArtifactsBucketName}

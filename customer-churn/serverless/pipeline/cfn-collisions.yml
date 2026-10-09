@@ -1,0 +1,5 @@
+# This file handles automatic Serverless Framework resource generation names that may be equal in different CFN stacks, and raise the following error at deploy: "Stack with id <stack-name> not found", even when stack apparently deployed OK.
+Outputs:
+  ServerlessDeploymentBucketName:
+    Export:
+      Name: ${self:custom.servicePrefix}-ServerlessDeploymentBucketName

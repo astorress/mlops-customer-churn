@@ -1,0 +1,31 @@
+---
+name: run-end-to-end-demo
+description: Guides the owner through the full customer-churn MLOps lifecycle in dev (local training, deploy, ingestion, pipeline, approval, endpoint, traffic, drift, batch, retraining, cleanup) and tells them what to observe at each step. Use when someone wants to practice or demo the MLOps flows.
+---
+
+# Run the end-to-end demo (dev)
+
+Commands are in `README.md` (Deployment, Model approval, Operation, Local development, Remove). Claude hands each
+command to the owner (they change AWS state and some cost money) and explains what to look at. Answer in the user's
+language.
+
+Prerequisites: `infrastructure/serverless/common` deployed and SNS subscription confirmed
+(`../infrastructure/README.md`); Docker running; devcontainer open.
+
+| #   | Owner runs                                                                                                                                                                                                | Observe                                                                                                                                       |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0   | `npm run local:download`, `npm run local:train`, `npm test`                                                                                                                                               | same code as SageMaker, no AWS; `models/local/evaluation.json` (AUC ≈ 0.85)                                                                   |
+| 1   | `npm run deploy-data:dev`                                                                                                                                                                                 | Glue → database `customer_churn` (empty `customers`, `predictions`), workflow `…-Ingestion`, DQ ruleset `…-Curated`; Athena saved queries     |
+| 2   | `npm run deploy-image:dev`, `npm run image:push`, `npm run deploy-pipeline:dev`                                                                                                                           | ECR image tag = content hash; SageMaker → Pipelines → `customer-churn-training`                                                               |
+| 3   | `npm run ingest`                                                                                                                                                                                          | Glue workflow run (crawler → job), DQ results; job SUCCEEDED starts a pipeline execution (`TriggeredBy=new-data`)                             |
+| 4   | `npm run pipeline:executions`                                                                                                                                                                             | Studio DAG; artifacts under `pipelines/customer-churn/executions/<id>/`; validation metrics; registry version `PendingManualApproval` + email |
+| 5   | Quality gate demo: start an execution with `MinRocAuc=0.99` (Studio, or `aws sagemaker start-pipeline-execution --pipeline-name customer-churn-training --pipeline-parameters Name=MinRocAuc,Value=0.99`) | ends in `FailLowAuc` + failure email                                                                                                          |
+| 6   | `npm run models`, `npm run models -- --approve <v>`                                                                                                                                                       | approval email; SSM `/data-science-customer-churn-pipeline/ApprovedModelPackageArn` updated                                                   |
+| 7   | `npm run deploy-endpoint:dev`                                                                                                                                                                             | endpoint `customer-churn` InService; SSM `PredictUrl`                                                                                         |
+| 8   | `python3 -m src.scripts.generate_traffic --api-url <url> --requests 50`                                                                                                                                   | predictions; `data-capture/customer-churn/` objects                                                                                           |
+| 9   | same with `--requests 300 --drift`, wait until minute 5 of the next hour                                                                                                                                  | `DataDrift` Lambda run (logs), report in `monitoring/customer-churn/data-drift/` with `status: drift`; alarm `…-DataDrift` → email            |
+| 10  | `npm run deploy-batch:dev`, `npm run batch:run`                                                                                                                                                           | transform job; Athena saved query "top churn risk customers"                                                                                  |
+| 11  | `npm run ingest:drift`                                                                                                                                                                                    | whole flow again → new pending version (continuous training)                                                                                  |
+| 12  | remove `serverless/endpoint` (`README.md` → Remove)                                                                                                                                                       | stops the hourly cost                                                                                                                         |
+
+If a step fails: `debug-pipeline-execution` skill (pipeline/registry/endpoint/batch errors).

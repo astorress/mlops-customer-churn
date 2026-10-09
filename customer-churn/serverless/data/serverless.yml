@@ -1,0 +1,129 @@
+# Data layer: raw → curated → (predictions), cataloged in Glue, queried with
+# Athena. Event-driven: a new raw file starts the Glue workflow (crawler →
+# curation job + data quality); a successful curation starts training
+# (rule in serverless/pipeline).
+service: customer-churn-data
+frameworkVersion: ^4.43.0
+configValidationMode: error
+
+provider:
+  name: aws
+  stage: dev
+  region: us-east-1
+  runtime: python3.13
+  architecture: arm64
+  stackName: ${self:custom.app}-${self:service}
+  versionFunctions: false
+  deploymentBucket:
+    name: ${self:custom.s3.deploymentBucketName.${self:custom.stage}}
+  logRetentionInDays: ${self:custom.lambda.logRetentionInDays.${self:custom.stage}}
+
+package:
+  individually: true
+  patterns:
+    - '!./**'
+
+functions:
+  - ${file(functions.yml)}
+
+resources:
+  - ${file(iam.yml)}
+  - ${file(glue.yml)}
+  - ${file(events.yml)}
+  - ${file(athena.yml)}
+  - ${file(ssm.yml)}
+  - ${file(cfn-collisions.yml)}
+
+plugins:
+  - serverless-deployment-bucket
+  - '@serverless/safeguards-plugin'
+  - serverless-s3-sync
+
+custom:
+  org: ${env:ORG}
+  app: data-science
+  project: customer-churn
+  stage: ${opt:stage, self:provider.stage}
+  safeguards:
+    - safeguard: framework-version
+      enforcementLevel: warning
+      config: ${self:frameworkVersion}
+    - safeguard: allowed-regions
+      enforcementLevel: error
+      config:
+        - ${self:provider.region}
+    - safeguard: no-wild-iam-role-statements
+      enforcementLevel: warning
+    - safeguard: allowed-runtimes
+      config:
+        - ${self:provider.runtime}
+    - safeguard: allowed-function-names
+      enforcementLevel: warning
+      config: ${self:custom.servicePrefix}-${FUNCTION}
+    - safeguard: allowed-stages
+      enforcementLevel: error
+      config:
+        - dev
+        - test
+        - prod
+  servicePrefix: ${self:custom.app}-${self:service}
+  developer: ${env:DEVELOPER}
+  dataset:
+    # IBM Telco Customer Churn (7,043 customers, 21 columns, Apache 2.0).
+    url: https://raw.githubusercontent.com/IBM/telco-customer-churn-on-icp4d/master/data/Telco-Customer-Churn.csv
+  prefixes:
+    raw: raw/customer_churn
+    curated: curated/customer_churn/customers
+    predictions: predictions/customer_churn
+    code: code/customer-churn/glue
+    glueTemp: tmp/customer-churn/glue
+  glue:
+    databaseName: customer_churn
+    rawTablePrefix: raw_
+    curatedTableName: customers
+    predictionsTableName: predictions
+    crawlerName: ${self:custom.servicePrefix}-RawCrawler
+    jobName: ${self:custom.servicePrefix}-CurateCustomers
+    workflowName: ${self:custom.servicePrefix}-Ingestion
+    version: '5.0'
+    workerType: G.1X
+    numberOfWorkers: 2
+    # Seconds the EVENT trigger waits to batch several raw files in one run.
+    eventBatchWindow: 120
+    # Glue Data Quality (DQDL). Evaluated by the curation job (fails the job)
+    # and attached to the curated table (re-runnable from the console).
+    dataQualityRuleset: >-
+      Rules = [
+        RowCount > 500,
+        IsComplete "customer_id",
+        IsUnique "customer_id",
+        IsComplete "churn",
+        ColumnValues "churn" >= 0,
+        ColumnValues "churn" <= 1,
+        ColumnValues "tenure" >= 0,
+        ColumnValues "monthly_charges" > 0,
+        Completeness "total_charges" > 0.95,
+        ColumnValues "contract" in ["month_to_month", "one_year", "two_year"]
+      ]
+  lambda:
+    logRetentionInDays:
+      dev: 1
+      test: 3
+      prod: 7
+  s3:
+    deploymentBucketName:
+      dev: ${self:provider.region}.${self:custom.org}.${self:custom.app}.${self:custom.stage}.${self:custom.developer}.deploys
+      test: ${self:provider.region}.${self:custom.org}.${self:custom.app}.${self:custom.stage}.deploys
+      prod: ${self:provider.region}.${self:custom.org}.${self:custom.app}.${self:custom.stage}.deploys
+    dataLakeBucketName: ${ssm:/${self:custom.app}-common-infrastructure/DataLakeBucketName}
+    dataLakeBucketArn: ${ssm:/${self:custom.app}-common-infrastructure/DataLakeBucketArn}
+    artifactsBucketName: ${ssm:/${self:custom.app}-common-infrastructure/ArtifactsBucketName}
+    artifactsBucketArn: ${ssm:/${self:custom.app}-common-infrastructure/ArtifactsBucketArn}
+  athena:
+    workGroupName: ${ssm:/${self:custom.app}-common-infrastructure/AthenaWorkGroupName}
+  # Glue job script → artifacts bucket on every deploy.
+  s3Sync:
+    - bucketName: ${self:custom.s3.artifactsBucketName}
+      bucketPrefix: ${self:custom.prefixes.code}/
+      localDir: ../../src/jobs/glue
+      deleteRemoved: true

@@ -1,0 +1,20 @@
+services:
+
+  data_science:
+    container_name: 'DataScience'
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: img-root
+    volumes:
+      - ..:/app
+      - data-science-bashhistory:/commandhistory
+    working_dir: /app
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -c
+      - sleep infinity
+
+volumes:
+  data-science-bashhistory:
