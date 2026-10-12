@@ -1,6 +1,6 @@
 # Environments — infrastructure
 
-Assumption (Step 4 not confirmed by the owner — **gap**): like `services/public-utilities`, each stage is a separate
+Assumption (Step 4 not confirmed by the owner — **gap**): each stage is a separate
 AWS account, which is why stack names have no stage suffix. Whether each developer has their own dev account is
 unknown; bucket names include `DEVELOPER` in `dev` so several developers can coexist in one account.
 

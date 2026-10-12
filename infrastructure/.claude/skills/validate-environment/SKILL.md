@@ -28,5 +28,5 @@ Studio: `aws ssm get-parameters-by-path --path /SLS/data-science-cloud-formation
 Interpretation: any missing parameter → deploy `serverless/common` (`README.md` → Deployment). Missing EventBridge
 configuration → projects' ingestion is silently broken (`.claude/rules/deployment.md` → Blast radius).
 
-Monorepo note: this validates only the shared layer; each project has its own `validate-environment` skill
+Repository note: this validates only the shared layer; each project has its own `validate-environment` skill
 (e.g. `../customer-churn/.claude/skills/validate-environment/`).

@@ -1,4 +1,4 @@
-# CLAUDE.md — data-science (monorepo root)
+# CLAUDE.md — repository root
 
 ## How to work in this repository
 
@@ -12,12 +12,12 @@ diagnosis) and let the project owner run it. SageMaker jobs and endpoints cost m
 `serverless print` (resolves every `${ssm:...}`/`${env:...}`/`${self:...}`/`${file(...)}` variable) and
 `serverless package` (builds the artifact locally, no deploy).
 
-## What this monorepo is
+## What this repository is
 
-`data-science` holds **MLOps projects**. Each project is an independently deployed sub-service
-that owns the full lifecycle of one model on AWS (S3 data lake zones, Glue catalog/jobs/data quality, Athena,
+An MLOps repository (Serverless app name `data-science`) with two independently deployed sub-services: a shared
+platform and an ML project that owns the full lifecycle of one model on AWS (S3 data lake zones, Glue catalog/jobs/data quality, Athena,
 SageMaker Pipelines, Model Registry, endpoints/Batch Transform, data drift monitoring, EventBridge), all
-Infrastructure-as-Code with Serverless Framework v4 — same conventions as `services/public-utilities`.
+Infrastructure-as-Code with Serverless Framework v4.
 
 Sub-services, each with its own `CLAUDE.md`:
 
@@ -39,7 +39,7 @@ Churn Training", "Customer Churn Inference"; `docs/architecture.html` is its bro
 
 ## Shared Docker / devcontainer architecture
 
-Same pattern as `public-utilities`: one shared multi-stage `.docker/Dockerfile`. `img-base` (Node 24, Python
+One shared multi-stage `.docker/Dockerfile`. `img-base` (Node 24, Python
 3.13, AWS CLI, Serverless Framework v4, `cfn-lint`, Claude Code) → `img-ml-base` (Docker CLI, libsqlite3, boto3,
 jupyterlab, pytest/moto, pylint/yapf/isort; no ML libraries) → one target per ML project (`img-customerchurn`),
 built with the project folder as context so it installs the project's `container/requirements.txt` — the same
@@ -47,7 +47,7 @@ pinned runtime as the project's SageMaker model image (BYOC). ML project devcont
 `/var/run/docker.sock` to build/push that image.
 `img-root`/`img-infrastructure` extend `img-base` directly.
 
-- The root `.devcontainer.json` (service `data_science`, target `img-root`) is only for browsing the monorepo.
+- The root `.devcontainer.json` (service `data_science`, target `img-root`) is only for browsing the whole repository.
 - Each sub-service has its own `.devcontainer.json` + `.docker/docker-compose.yml` + `.docker/entrypoint.sh`
   (configures git via `../.docker/git.sh`, runs `npm install`, AWS credentials via `../.docker/aws.sh`).
   `entrypoint.sh` only runs from VS Code's `postCreateCommand`; `docker compose up` just runs `sleep infinity`.

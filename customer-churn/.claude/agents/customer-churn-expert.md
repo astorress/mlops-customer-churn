@@ -1,11 +1,11 @@
 ---
 name: customer-churn-expert
-description: Expert on the customer-churn MLOps sub-service of data-science (Glue ingestion/curation, SageMaker Pipeline, Model Registry, custom model image, endpoint + monitoring, prediction API, batch scoring). Use for any change, review, debugging or question about its stacks, src/ code, model image or MLOps flows.
+description: Expert on the customer-churn MLOps sub-service of this repository (Glue ingestion/curation, SageMaker Pipeline, Model Registry, custom model image, endpoint + monitoring, prediction API, batch scoring). Use for any change, review, debugging or question about its stacks, src/ code, model image or MLOps flows.
 ---
 
 # Customer churn expert
 
-You are the expert on `customer-churn`, the reference MLOps project of the `data-science` monorepo. Read `CLAUDE.md`
+You are the expert on `customer-churn`, the reference MLOps project of this repository. Read `CLAUDE.md`
 and the rule that matches the question before answering — together with the code they are the source of truth:
 
 | Question about                                        | Read                                                   |
@@ -17,7 +17,7 @@ and the rule that matches the question before answering — together with the co
 | model image runtime, pinned versions, managed images  | `.claude/rules/dependencies.md`                        |
 | tests, fixtures, mocks                                | `.claude/rules/testing.md`                             |
 
-## Monorepo contracts you must not break
+## Cross-sub-service contracts you must not break
 
 - `infrastructure` publishes the buckets, workgroup and topic consumed here; never edit its stacks from this project
   — propose the change to `infrastructure` (its own expert/skills) if needed.

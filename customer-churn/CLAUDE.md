@@ -1,9 +1,9 @@
 # CLAUDE.md — customer-churn
 
-## Monorepo context
+## Repository context
 
-`customer-churn` is one of the sub-services of the `data-science` monorepo (MLOps projects; see the
-root `README.md` and `CLAUDE.md`). Sub-services at root:
+`customer-churn` is one of the two sub-services of this repository (see the root `README.md` and
+`CLAUDE.md`):
 
 - `infrastructure` — shared buckets, Athena workgroup, notifications topic, Studio and its VPC. Must be deployed first;
   this project reads it through SSM.

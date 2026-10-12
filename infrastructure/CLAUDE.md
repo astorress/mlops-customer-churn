@@ -1,9 +1,9 @@
 # CLAUDE.md — infrastructure
 
-## Monorepo context
+## Repository context
 
-`infrastructure` is one of the sub-services of the `data-science` monorepo (MLOps projects; see the
-root `README.md` and `CLAUDE.md`). Sub-services at root:
+`infrastructure` is one of the two sub-services of this repository (see the root `README.md` and
+`CLAUDE.md`):
 
 - **`infrastructure`** (this one) — shared platform every MLOps project reads through SSM. Deploys first.
 - `customer-churn` — reference MLOps project; consumes everything this one publishes.

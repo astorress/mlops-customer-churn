@@ -13,7 +13,7 @@ description: Writes or updates the changelog entry for a change in the customer-
 
 ## Which file
 
-The monorepo has a **single root `changelog.md`** (`../changelog.md`); this sub-service has no changelog of its own.
+The repository has a **single root `changelog.md`** (`../changelog.md`); this sub-service has no changelog of its own.
 Entries go there under the `` `Customer Churn` module: `` bullet. Cross-cutting changes (shared `.docker/`, root
 `.envs/`, `.gitlab-ci.yml`) also go to root. If a sub-service changelog is ever created and later frozen with a "no
 longer maintained, see root changelog" note, keep writing to root.
@@ -33,9 +33,9 @@ longer maintained, see root changelog" note, keep writing to root.
 - **Minor**: new flow or stack, new pipeline step, new API capability, library bump with retraining.
 - **Patch**: fixes, thresholds, retention, docs.
 
-## References to other repositories
+## References to external repositories
 
-Plain text only (e.g. "see `services/public-utilities` changelog"), never a relative Markdown link.
+Plain text only (e.g. the name of an external library), never a relative Markdown link.
 
 ## Verify
 

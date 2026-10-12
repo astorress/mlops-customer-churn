@@ -1,6 +1,6 @@
 # Environments — customer-churn
 
-Assumption (Step 4 not confirmed — **gap**): one AWS account per stage, as in `services/public-utilities`; the shared
+Assumption (Step 4 not confirmed — **gap**): one AWS account per stage; the shared
 buckets come from `infrastructure` in the same account (names: `../infrastructure/.claude/rules/environments.md`).
 Region `us-east-1`; stages `dev|test|prod` (safeguards).
 

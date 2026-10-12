@@ -49,5 +49,5 @@ docker rm -f churn-serve
 Paths: the devcontainer talks to the host daemon, so `-v` paths must exist on the host — run this block from a host
 shell or use a folder under the mounted repository instead of `mktemp`.
 
-Monorepo note: steps 1, 2 and 4 need nothing deployed; step 3 needs `infrastructure/serverless/common` and the
+Repository note: steps 1, 2 and 4 need nothing deployed; step 3 needs `infrastructure/serverless/common` and the
 upstream project stacks (`.claude/rules/deployment.md`).

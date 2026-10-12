@@ -1,8 +1,8 @@
 # Architecture — infrastructure
 
-## Place in the monorepo
+## Place in the repository
 
-`infrastructure` is the foundation of `data-science`. It owns no application code and calls nothing at run time: every MLOps
+`infrastructure` is the foundation of this repository. It owns no application code and calls nothing at run time: every MLOps
 project (today only `customer-churn`) **reads** its outputs from SSM at deploy time and writes into its buckets at run
 time. The authoritative diagram is the "Infrastructure" page of root `docs/architecture.drawio` (browser export
 `docs/architecture.html`; layers `infra-platform` and `infra-studio`); this file has the detail the diagram doesn't.
@@ -49,7 +49,6 @@ Stack names: `data-science-common-infrastructure`, `data-science-sagemaker-studi
 
 - Bucket names for ML use hyphens, not dots (TLS virtual-hosted style and some SageMaker features break with dots);
   only the Serverless deployment bucket keeps the dotted repository convention.
-- The VPC is reused from `Library > Cloud Formation > Virtual Private Cloud` (same library as
-  `services/data-warehouse`), vendored in `customlib/` — not copied into this repository (`.claude/rules/dependencies.md`).
+- The VPC is reused from the `Library > Cloud Formation > Virtual Private Cloud` library, vendored in `customlib/` — not copied into this repository (`.claude/rules/dependencies.md`).
 - Cross-stack contracts go through SSM (`/${app}-${service}/<Name>`), never CloudFormation exports, so stacks can be
-  updated or replaced independently (same convention as `services/public-utilities`).
+  updated or replaced independently.

@@ -1,4 +1,4 @@
-# CI/CD template for the data-science monorepo. Each project only runs when
+# CI/CD template for this repository. Each project only runs when
 # its own files (or the shared Docker/envs setup) change. Deploys are manual
 # jobs: AWS credentials and SERVERLESS_ACCESS_KEY come from protected CI/CD
 # variables, DEVELOPER/NOTIFICATION_EMAILS/MIN_ROC_AUC from project variables.

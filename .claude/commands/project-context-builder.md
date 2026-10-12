@@ -305,8 +305,8 @@ Checklist must cover at minimum:
 - docker-compose.yml: all required `env_file` entries present; secret names match Dockerfile
   symlink targets exactly; named volumes match Dockerfile mount points.
 - Cross-file: Python interpreter uniqueness (grep for any apt python3 install); SLS plugin parity
-  both directions across all stacks; migration toolchain completeness (`yoyo`, `psycopg2-binary`,
-  `aws`, `jq` all present in correct image stages); secret name consistency Dockerfile ↔ compose.
+  both directions across all stacks; migration toolchain completeness, if the project owns
+  database migrations (every tool present in the correct image stage); secret name consistency Dockerfile ↔ compose.
 
 **Create if applicable:**
 

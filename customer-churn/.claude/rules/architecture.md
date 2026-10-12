@@ -1,6 +1,6 @@
 # Architecture — customer-churn
 
-## Place in the monorepo
+## Place in the repository
 
 Consumer of `infrastructure` (buckets, workgroup, topic via SSM `/data-science-common-infrastructure/*`, see
 `dependencies.md`). Nobody consumes this project yet (Step 4 **gap**: no confirmed downstream system for the
@@ -53,7 +53,7 @@ browser export `docs/architecture.html`. Shared resources keep the same numberin
   contract; `curation.py` = pandas mirror of the Glue job), `monitoring/` (`drift.py`, PSI), `models/` (`estimator.py`, `train.py`, `metrics.py`),
   `pipelines/training/` (pipeline step scripts), `serving/` (`inference.py`, `serve.py`).
 - `jobs/glue/` — Glue scripts (synced to `code/customer-churn/glue/` by `serverless-s3-sync` in the data stack).
-- Lambdas, `services/public-utilities` convention: handlers in `functions/<group>/` (no `boto3`), one module per AWS
+- Lambdas: handlers in `functions/<group>/` (no `boto3`), one module per AWS
   service in `services/` (module-level `CLIENT` + thin functions), `utilities/` for what every Lambda shares
   (`logger`, `errors`, `http`). Each function's `package.patterns` lists only the files it imports.
 - `scripts/` — local tooling, reuses `services`.

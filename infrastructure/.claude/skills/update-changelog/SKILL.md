@@ -14,7 +14,7 @@ description: Writes or updates the changelog entry for a change in the infrastru
 
 ## Which file
 
-The monorepo has a **single root `changelog.md`** (`../changelog.md`); sub-services have no changelog of their own.
+The repository has a **single root `changelog.md`** (`../changelog.md`); sub-services have no changelog of their own.
 Entries for this sub-service go there, under the `` `Infrastructure` module: `` bullet. Cross-cutting changes
 (shared `.docker/`, root `.envs/`, CI) also go to root, under their own bullet or the affected modules. If a
 sub-service changelog is ever created and later frozen with a "no longer maintained, see root changelog" note, keep
@@ -34,9 +34,9 @@ writing to root.
 - **Minor**: new shared resource, parameter or stack.
 - **Patch**: retention tweaks, policy fixes, docs.
 
-## References to other repositories
+## References to external repositories
 
-Mention them as plain text (e.g. "see `services/public-utilities` changelog"), never as a relative Markdown link —
+Mention them as plain text (e.g. the name of an external library), never as a relative Markdown link —
 it would cross a git repository boundary.
 
 ## Verify

@@ -47,8 +47,7 @@ depend on these buckets).
   - Without `LIBCFNVPC_VPC_CREATE_NAT_GATEWAY=false` the library creates one NAT gateway (hourly cost).
   - `zones: auto-discover` puts subnets in every available AZ of `us-east-1`. Not verified whether every AZ supports
     Studio: if the domain creation fails on a subnet, that's the first suspect.
-  - CIDR is hard-coded to `10.0.0.0/16`, the same as `services/data-warehouse`'s VPC; peering them later would need a
-    library change.
+  - CIDR is hard-coded to `10.0.0.0/16`; peering with another VPC in the same range would need a library change.
   - `customlib/` only exists after the devcontainer's `entrypoint.sh` ran (needs the GitLab SSH key secret).
 - Removing `studio` can leave SageMaker-created EFS/mount targets/security groups that block the VPC removal
   (`README.md` → Remove).

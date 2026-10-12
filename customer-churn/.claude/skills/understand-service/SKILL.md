@@ -1,6 +1,6 @@
 ---
 name: understand-service
-description: Explains customer-churn to someone new — what it predicts, its five stacks, how each MLOps concept maps to a real file, how it fits in the data-science monorepo and what it does NOT own. Use when onboarding, when someone wants to learn MLOps with this project, or before a first change.
+description: Explains customer-churn to someone new — what it predicts, its five stacks, how each MLOps concept maps to a real file, how it fits in the repository and what it does NOT own. Use when onboarding, when someone wants to learn MLOps with this project, or before a first change.
 ---
 
 # Understand customer-churn
@@ -13,10 +13,10 @@ Reference MLOps project: predicts churn on the public IBM Telco Customer Churn d
 churn) with a scikit-learn Pipeline (imputation + one-hot + `HistGradientBoostingClassifier`, test ROC AUC ≈ 0.85),
 and runs its whole lifecycle on AWS as IaC. It is also the template for the next MLOps projects.
 
-## 2. Place in the monorepo
+## 2. Place in the repository
 
 Needs `infrastructure` (buckets, Athena workgroup, notifications topic via SSM). Nobody consumes it yet. See
-`.claude/rules/architecture.md` → Place in the monorepo, and open root `docs/architecture.html` (pages "Customer Churn
+`.claude/rules/architecture.md` → Place in the repository, and open root `docs/architecture.html` (pages "Customer Churn
 Training" / "Customer Churn Inference") to walk the numbered steps.
 
 ## 3. The five stacks and the flows

@@ -1,13 +1,13 @@
 ---
 name: understand-service
-description: Explains the data-science infrastructure sub-service to someone new — the shared buckets and their zones, the Athena workgroup, the notifications topic, the Studio VPC and Studio, the SSM contract with MLOps projects, and what it does NOT own. Use when onboarding or before a first change in infrastructure.
+description: Explains the infrastructure sub-service to someone new — the shared buckets and their zones, the Athena workgroup, the notifications topic, the Studio VPC and Studio, the SSM contract with MLOps projects, and what it does NOT own. Use when onboarding or before a first change in infrastructure.
 ---
 
 # Understand infrastructure
 
 Answer in the language the person writes in. Point at real files.
 
-1. **What it is**: the shared platform of the `data-science` monorepo — pure IaC, no code. Two stacks:
+1. **What it is**: the shared platform of this repository — pure IaC, no code. Two stacks:
    `serverless/common` (buckets, workgroup, topic, SSM) and `serverless/studio` (team UI), plus the vendored VPC
    library stack Studio runs in (why Studio needs a VPC: architecture.md → Resource roles). Details:
    `.claude/rules/architecture.md` → Stacks.

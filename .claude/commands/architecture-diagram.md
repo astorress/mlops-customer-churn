@@ -228,11 +228,11 @@ HTML (escapado dentro de `value`):
   bucket), nómbralo con su número.
 - **Sin detalles de implementación de bajo nivel**: nada de rutas/prefijos
   de buckets, nombres de keys, ARNs ni **nombres técnicos de permisos**
-  (`POST/agentAnalyst`, `Query/organizations`…), **headers**
-  (`x-current-organization`, `Authorization`), dominios, nombres internos
+  (`POST/orders`, `Query/listUsers`…), **headers**
+  (`x-tenant-id`, `Authorization`), dominios, nombres internos
   de resolvers/tools/funciones de código ni valores de enums; descríbelos en
-  palabras ("only users allowed to use the agent", "sending the user's
-  session and the organization they are working on"). Sí van los nombres de
+  palabras ("only users allowed to call the API", "sending the user's
+  session and the tenant they are working on"). Sí van los nombres de
   los recursos que aparecen en el diagrama (Lambdas, colas, tablas).
 - Altura ajustada al texto, sin espacio vacío grande.
 
